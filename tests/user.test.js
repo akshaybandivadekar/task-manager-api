@@ -1,5 +1,6 @@
 const request = require('supertest');
 const app = require('../src/app');
+const bcrypt = require('bcryptjs')
 const User = require('../src/models/user');
 const {userOneId, userOne, setupDatabase} = require('./fixtures/db');
 
@@ -113,3 +114,64 @@ test('Should not update invalid user field', async() => {
         })
         .expect(400);
 });
+
+test('Should not signup user with invalid email', async () => {
+    // Assertion to check bad email address
+    await request(app)
+        .post('/users')
+        .send({
+            name: 'Devika',
+            email: 'dev.com',
+            password: 'DDAANN12'
+        })
+        .expect(400)
+})
+
+test('Should not signup user with invalid password', async () => {
+    // Assertion to check bad password
+    await request(app)
+        .post('/users')
+        .send({
+            name: 'Devika',
+            emial: 'dev@gmail.com',
+            password: 'DEV12'
+        })
+        .expect(400)
+})
+
+test('Should not update the user if unauthenticated', async () => {
+    // Assertion to check the security 
+    await request(app)
+        .patch('/users/me')
+        .send({
+            name: 'Dev'
+        })
+        .expect(401)
+})
+
+test('Should not update user with invalid email', async () => {
+    const response = await request(app)
+        .patch('/users/me')
+        .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
+        .send({
+            email: 'dev123.com'
+        })
+        .expect(400)
+
+    const user = await User.findById(userOneId)
+    expect(user.email).not.toBe('dev123.com')
+})
+
+test('Should not update user with invalid password', async () => {
+    const response = await request(app)
+        .patch('/users/me')
+        .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
+        .send({
+            password: '1234'
+        })
+        .expect(400)
+
+    const user = await User.findById(userOneId)
+    const isSame = await bcrypt.compare('1234', user.password)
+    expect(isSame).toBe(false)
+})
